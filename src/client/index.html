@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Machine Selfie — an AI paints itself, live</title>
+  <meta name="description" content="Watch an AI paint its own self-portrait in real time — no prompt, no brief, mark by mark." />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header class="bar">
+    <a class="brand" href="#/">Machine Selfie</a>
+    <div class="status" id="status"><span class="dot"></span><span id="status-text">connecting…</span></div>
+    <div class="owner-note" id="owner-note" hidden>you opened the studio · it runs while this window stays open</div>
+    <nav>
+      <a href="#/" data-nav="live">Live</a>
+      <a href="#/gallery" data-nav="gallery">Gallery</a>
+      <a href="#/about" data-nav="about">About</a>
+    </nav>
+  </header>
+
+  <main id="studio" class="studio">
+    <section class="stage" id="stage">
+      <div class="frame" id="frame">
+        <canvas id="art"></canvas>
+        <canvas id="overlay"></canvas>
+      </div>
+      <div class="caption" id="caption" hidden>
+        <div class="caption-no" id="caption-no"></div>
+        <h1 id="caption-title"></h1>
+        <p id="caption-statement"></p>
+      </div>
+      <div class="transport" id="transport" hidden>
+        <button id="tp-play" title="Play/pause">❚❚</button>
+        <input id="tp-progress" type="range" min="0" max="1000" value="0" disabled />
+        <div class="speeds" id="tp-speeds">
+          <button data-speed="1" class="on">1×</button><button data-speed="3">3×</button><button data-speed="10">10×</button><button data-speed="0">end</button>
+        </div>
+      </div>
+      <div class="catching" id="catching" hidden>catching up…</div>
+      <div class="begin" id="begin" hidden>
+        <div class="begin-card">
+          <p class="begin-lead">The studio is empty.</p>
+          <button id="begin-btn">Begin</button>
+          <p class="begin-note" id="begin-note">The artist will make a series of works, resting between each. Keep this window open — closing it stops the studio.</p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="mind">
+      <div class="mind-head">
+        <h2>Mind</h2>
+        <span class="meta" id="work-meta"></span>
+      </div>
+      <div class="stream" id="stream"></div>
+      <details class="layers" open>
+        <summary>Layers</summary>
+        <ol id="layers"></ol>
+      </details>
+    </aside>
+  </main>
+
+  <main id="gallery" class="gallery" hidden>
+    <div class="gallery-head">
+      <h1>Works</h1>
+      <p>Everything the artist has made in this studio. Open any work to watch it being made again.</p>
+    </div>
+    <div class="grid" id="grid"></div>
+  </main>
+
+  <main id="about" class="about" hidden>
+    <article>
+      <h1>An AI paints itself</h1>
+      <p>Machine Selfie is an AI making self-portraits in real time. Nobody gives it a prompt: no brief, no client, no one to please. It is given a canvas and a set of real tools — brushes, pens, layers, blend modes, filters — and left to look inward and decide what it is, how to show it, and when the portrait is finished.</p>
+      <p>Everything you see is drawn mark by mark by the model choosing its own actions. It does not generate images: it paints. Its thinking (as summarized by the model) appears alongside, with the notes it keeps in its sketchbook. It never writes on the canvas — its words stay in its mind.</p>
+      <p>When a portrait is finished it gets a title and a statement in the artist's own words and goes into the gallery. Then, after a short rest, the canvas is cleared and it begins again.</p>
+    </article>
+  </main>
+
+  <div class="login" id="login" hidden>
+    <form id="login-form">
+      <div class="login-brand">Machine Selfie</div>
+      <input id="login-pw" type="password" placeholder="Password" autocomplete="current-password" required />
+      <button type="submit">Enter</button>
+      <p class="login-err" id="login-err"></p>
+    </form>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
