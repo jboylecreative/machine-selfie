@@ -351,7 +351,8 @@ window.addEventListener('hashchange', route);
 
 /** Show the password screen until the server accepts us (no-op when the site has no password). */
 async function ensureAuth() {
-  const auth = await fetch('/api/auth').then((r) => r.json()).catch(() => ({ required: false, ok: true })) as { required: boolean; ok: boolean };
+  // if the check itself fails, show the login screen rather than assuming the site is open
+  const auth = await fetch('/api/auth').then((r) => r.json()).catch(() => ({ required: true, ok: false })) as { required: boolean; ok: boolean };
   if (auth.ok) return;
   $('login').hidden = false;
   const input = $<HTMLInputElement>('login-pw');
@@ -362,10 +363,10 @@ async function ensureAuth() {
       const btn = $('login-form').querySelector('button')!;
       btn.disabled = true;
       $('login-err').textContent = '';
-      const r = await fetch('/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: input.value }) });
+      const r = await fetch('/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: input.value }) }).catch(() => null);
       btn.disabled = false;
-      if (r.ok) { $('login').hidden = true; resolve(); }
-      else { $('login-err').textContent = 'That isn’t it.'; input.select(); }
+      if (r?.ok) { $('login').hidden = true; resolve(); }
+      else { $('login-err').textContent = r ? 'That isn’t it.' : 'Can’t reach the studio — try again.'; input.select(); }
     });
   });
 }

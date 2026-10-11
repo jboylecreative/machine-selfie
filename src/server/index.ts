@@ -29,7 +29,7 @@ const WORKS_PER_RUN = args.has('--once') ? 1 : Math.max(1, Math.round(Number(pro
 const OWNER_GRACE_MS = 10_000; // a reload reconnects well within this; a closed tab doesn't
 const apiKey = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY;
 
-if (!apiKey) console.warn('[studio] GEMINI_API_KEY is not set — the site will run, but the studio cannot start. Add it to .env.');
+if (!apiKey) console.warn('[studio] GEMINI_API_KEY is not set — the site will run, but the studio cannot start. Add it to .env, or to the hosting environment variables.');
 const ai = new GoogleGenAI({ apiKey: apiKey ?? 'none' });
 
 if (args.has('--list-models')) {
@@ -70,7 +70,7 @@ async function recoverInterrupted() {
 }
 const cfg: AgentConfig = {
   ai,
-  model: process.env.GEMINI_MODEL || 'gemini-3-pro-preview',
+  model: process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview',
   thinkingLevel: (process.env.THINKING_LEVEL || 'HIGH').toUpperCase(),
   temperature: Number(process.env.TEMPERATURE ?? 1),
   maxTurns: Number(process.env.MAX_TURNS ?? 150),
