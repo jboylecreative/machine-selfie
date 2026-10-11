@@ -18,7 +18,6 @@ export interface AgentConfig {
   thinkingLevel: string;
   temperature: number;
   maxTurns: number;
-  minTurns: number; // `finish` is refused before this turn
   maxToolCalls: number;
   viewSize: number; // long edge of the canvas image shown to the model
   rememberPastWorks: boolean; // show the artist its earlier works (off = every work starts fresh)
@@ -106,12 +105,7 @@ export async function runSession(cfg: AgentConfig, archive: Archive, hooks: Sess
         let response: Record<string, unknown>;
         let attach: FunctionResponsePart[] | undefined;
         try {
-          const outOfActions = toolCalls > cfg.maxToolCalls;
-          if (outOfActions && name !== 'finish') throw new ToolError('the session has used up its action budget — call finish');
-          if (name === 'finish' && turn < cfg.minTurns && !outOfActions) {
-            const left = cfg.minTurns - turn;
-            throw new ToolError(`too early to finish: the studio requires at least ${cfg.minTurns} turns and this is turn ${turn}. Keep working; finishing becomes possible in ${left} more turn${left === 1 ? '' : 's'}.`);
-          }
+          if (toolCalls > cfg.maxToolCalls && name !== 'finish') throw new ToolError('the session has used up its action budget — call finish');
           const out = executeTool(name, (call.args ?? {}) as Record<string, unknown>, ctx);
           response = out.response;
           if (out.kind === 'note') emit({ type: 'note', text: out.note });
@@ -193,7 +187,7 @@ async function generate(
         config: {
           systemInstruction,
           temperature: cfg.temperature,
-          tools: [{ functionDeclarations: declarationsFor(cfg) }],
+          tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
           thinkingConfig: { includeThoughts: true, thinkingLevel: cfg.thinkingLevel as ThinkingLevel },
           abortSignal: signal,
         },
@@ -225,14 +219,6 @@ async function generate(
       await sleep(wait, signal);
     }
   }
-}
-
-/** The tool list for this studio's settings: `finish` states the minimum number of turns up front. */
-function declarationsFor(cfg: AgentConfig) {
-  if (cfg.minTurns <= 1) return TOOL_DECLARATIONS;
-  return TOOL_DECLARATIONS.map((t) => (t.name === 'finish'
-    ? { ...t, description: `${t.description} The studio requires at least ${cfg.minTurns} turns before a work can be finished.` }
-    : t));
 }
 
 // ------------------------------------------------------------------ images for the model

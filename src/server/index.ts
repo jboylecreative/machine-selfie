@@ -74,7 +74,6 @@ const cfg: AgentConfig = {
   thinkingLevel: (process.env.THINKING_LEVEL || 'HIGH').toUpperCase(),
   temperature: Number(process.env.TEMPERATURE ?? 1),
   maxTurns: Number(process.env.MAX_TURNS ?? 150),
-  minTurns: Math.min(Number(process.env.MAX_TURNS ?? 150), Math.max(1, Number(process.env.MIN_TURNS ?? 15))),
   maxToolCalls: Number(process.env.MAX_TOOL_CALLS ?? 1500),
   viewSize: 1024,
   rememberPastWorks: /^(1|true|yes)$/i.test(process.env.REMEMBER_PAST_WORKS ?? ''),
@@ -273,7 +272,7 @@ wss.on('connection', (ws) => {
 
 server.listen(PORT, () => {
   console.log(`[studio] listening on http://localhost:${PORT}${PROD ? '' : '  (viewer: http://localhost:5173)'}`);
-  console.log(`[studio] model ${cfg.model}, thinking ${cfg.thinkingLevel}, turns ${cfg.minTurns}–${cfg.maxTurns} per work, ${WORKS_PER_RUN} works per run`);
+  console.log(`[studio] model ${cfg.model}, thinking ${cfg.thinkingLevel}, max ${cfg.maxTurns} turns, ${WORKS_PER_RUN} works per run`);
   console.log(`[studio] archive: ${DATA_DIR} · site password ${authRequired() ? 'ON' : 'off (set SITE_PASSWORD to require one)'}`);
   console.log('[studio] idle — open the site and press Begin to start the artist');
 });
