@@ -82,4 +82,9 @@ Each deploy restarts the server (with a volume attached there's a few seconds of
 cutting off any work in progress — it's recovered into the gallery as unfinished.
 
 Cost scales with session length: every turn sends the conversation plus a canvas image to the
-model. `MAX_TURNS` and `MAX_TOOL_CALLS` cap each work.
+model. `MAX_TURNS` and `MAX_TOOL_CALLS` cap each work, and `TOTAL_BUDGET_USD` (default $100) is a
+hard spending cap that stops the studio no matter who has a tab open: the server estimates each
+call's cost from its token counts at list price (ignoring caching discounts), counting every work
+in the archive. Once reached, the studio closes for good and shows "We've exceeded our token
+limit" until you raise the cap. The total lives in the archive, so on Railway the studio refuses
+to start without a volume.

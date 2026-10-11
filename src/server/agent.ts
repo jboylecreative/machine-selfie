@@ -20,6 +20,9 @@ export interface AgentConfig {
   maxTurns: number;
   maxToolCalls: number;
   viewSize: number; // long edge of the canvas image shown to the model
+  /** USD per million tokens, for the daily budget estimate (thinking tokens bill as output) */
+  priceInputPerM: number;
+  pricePerOutputM: number;
   rememberPastWorks: boolean; // show the artist its earlier works (off = every work starts fresh)
 }
 
@@ -27,6 +30,10 @@ export interface SessionHooks {
   onEvent(e: StudioEvent): void;
   /** aborting stops the session immediately, cancelling any in-flight model call */
   signal: AbortSignal;
+  /** called with the estimated cost of each model call */
+  onSpend(usd: number): void;
+  /** true once the daily budget is used up: the session stops before its next turn */
+  budgetSpent(): boolean;
 }
 
 const KEEP_IMAGES = 3; // most recent canvas views kept in context; older ones are replaced by a note
@@ -82,10 +89,11 @@ export async function runSession(cfg: AgentConfig, archive: Archive, hooks: Sess
   try {
     for (let turn = 1; turn <= cfg.maxTurns; turn++) {
       if (hooks.signal.aborted) break;
+      if (hooks.budgetSpent()) { endReason = 'stopped — the spending limit was reached'; break; }
       meta.turns = turn;
       emit({ type: 'turn', n: turn });
 
-      const { parts, calls } = await generate(cfg, systemInstruction, history, emit, meta, hooks.signal);
+      const { parts, calls } = await generate(cfg, systemInstruction, history, emit, meta, hooks);
       history.push({ role: 'model', parts: parts.length ? parts : [{ text: '' }] });
 
       if (!calls.length) {
@@ -175,8 +183,9 @@ export async function runSession(cfg: AgentConfig, archive: Archive, hooks: Sess
 
 async function generate(
   cfg: AgentConfig, systemInstruction: string, history: Content[],
-  emit: (e: EventBody) => void, meta: SessionMeta, signal: AbortSignal,
+  emit: (e: EventBody) => void, meta: SessionMeta, hooks: SessionHooks,
 ): Promise<{ parts: Part[]; calls: FunctionCall[] }> {
+  const signal = hooks.signal;
   for (let attempt = 0; ; attempt++) {
     const parts: Part[] = [];
     const calls: FunctionCall[] = [];
@@ -204,9 +213,14 @@ async function generate(
         }
       }
       if (usage) {
-        meta.tokens.input += usage.promptTokenCount ?? 0;
+        const input = usage.promptTokenCount ?? 0;
+        const output = (usage.candidatesTokenCount ?? 0) + (usage.thoughtsTokenCount ?? 0);
+        meta.tokens.input += input;
         meta.tokens.output += usage.candidatesTokenCount ?? 0;
         meta.tokens.thoughts += usage.thoughtsTokenCount ?? 0;
+        const usd = (input * cfg.priceInputPerM + output * cfg.pricePerOutputM) / 1e6;
+        meta.costUsd = (meta.costUsd ?? 0) + usd;
+        hooks.onSpend(usd);
       }
       return { parts, calls };
     } catch (e) {

@@ -90,6 +90,10 @@ nav a.on, nav a:hover { color: var(--ink); }
 }
 .next-btn:hover { border-color: var(--ink); }
 .next-btn:disabled { opacity: .5; cursor: default; }
+.spend { margin-left: auto; font: 11px var(--mono); color: var(--dim); white-space: nowrap; }
+.spend.warn { color: var(--accent); }
+.spend.over { color: var(--live); }
+.spend + nav { margin-left: 0; }
 .owner-note { font: 11px var(--mono); color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
 /* ---------------------------------------------------------------- mind panel */

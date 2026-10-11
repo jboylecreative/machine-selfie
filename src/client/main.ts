@@ -1,5 +1,5 @@
 import { FONTS, fontFile } from '../engine/fonts.ts';
-import type { ClientMessage, ServerMessage, SessionMeta, StudioEvent, StudioState } from '../shared/events.ts';
+import type { ClientMessage, ServerMessage, SessionMeta, Spend, StudioEvent, StudioState } from '../shared/events.ts';
 import { Player } from './player.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -164,7 +164,7 @@ setInterval(() => {
 // ------------------------------------------------------------------ live connection
 
 let liveEvents: StudioEvent[] = [];
-let studioState: StudioState = { phase: 'idle', worksPerRun: 10, completedRun: false };
+let studioState: StudioState = { phase: 'idle', worksPerRun: 10, completedRun: false, blocked: null };
 let connected = false;
 let isOwner = false;
 /** server clock minus this browser's clock: countdowns use server time, so a wrong local clock can't break them */
@@ -216,6 +216,16 @@ function updateBegin() {
     $('begin-btn').textContent = idle.completedRun ? 'Continue' : 'Begin';
     document.querySelector('.begin-lead')!.textContent = idle.completedRun ? `The artist has made ${works}.` : 'The studio is empty.';
     $('begin-note').textContent = `The artist will make ${idle.completedRun ? 'another ' : ''}${works}, resting between each. Keep this window open — closing it stops the studio.`;
+    if (idle.blocked) {
+      ($('begin-btn') as HTMLButtonElement).disabled = true;
+      const [lead, note] = idle.blocked === 'total'
+        ? ['We’ve exceeded our token limit.', '']
+        : ['The studio can’t open yet.', 'Its storage isn’t set up, so the spending limit couldn’t be enforced. (Attach a volume to the service.)'];
+      document.querySelector('.begin-lead')!.textContent = lead;
+      $('begin-note').textContent = note;
+    }
+    $('begin-btn').hidden = !!idle.blocked;
+    $('begin-note').hidden = !$('begin-note').textContent;
   }
   $('owner-note').hidden = !(isOwner && studioState.phase !== 'idle');
   const canNext = mode === 'live' && connected && isOwner && (studioState.phase === 'working' || studioState.phase === 'resting');
@@ -225,6 +235,16 @@ function updateBegin() {
   rb.disabled = !!nextRequestedAt;
 }
 
+/** "$14.10 of $100 used": the server's running cost estimate against the spending limit */
+function renderSpend(s: Spend) {
+  const el = $('spend');
+  const usd = (n: number) => `$${n.toFixed(2)}`;
+  el.textContent = s.limit > 0 ? `${usd(s.spent)} of $${s.limit} used` : `${usd(s.spent)} spent`;
+  el.classList.toggle('warn', s.limit > 0 && s.spent >= s.limit * 0.8 && s.spent < s.limit);
+  el.classList.toggle('over', s.limit > 0 && s.spent >= s.limit);
+  el.hidden = false;
+}
+
 function connect() {
   const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
   socket = ws;
@@ -232,6 +252,7 @@ function connect() {
   ws.onmessage = (m) => {
     const msg = JSON.parse(m.data) as ServerMessage;
     if (msg.type === 'hello' || msg.type === 'state') clockOffset = msg.serverTime - Date.now();
+    if (msg.type === 'hello' || msg.type === 'spend') renderSpend(msg.spend);
     if (msg.type === 'hello') {
       liveEvents = msg.events;
       studioState = msg.state;
@@ -304,6 +325,8 @@ function updateStatus() {
     const s = Math.max(0, Math.round((studioState.nextAt - (Date.now() + clockOffset)) / 1000));
     txt.textContent = `Resting · work ${studioState.work} of ${studioState.of} begins in ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   } else if (studioState.phase === 'stopping') txt.textContent = 'The studio is closing…';
+  else if (studioState.blocked === 'total') txt.textContent = 'Token limit reached';
+  else if (studioState.blocked === 'storage') txt.textContent = 'Closed · storage not set up';
   else txt.textContent = studioState.completedRun ? 'Run complete · press Continue for more' : 'The studio is empty';
 }
 

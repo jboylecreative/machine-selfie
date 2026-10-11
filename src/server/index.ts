@@ -18,6 +18,7 @@ import { Archive, DATA_DIR } from './archive.ts';
 import { runSession, sleep, type AgentConfig } from './agent.ts';
 import { encode, loadFonts, nodePlatform } from './platform.ts';
 import { authRequired, checkPassword, isAuthed, loginCookie, readBody } from './auth.ts';
+import { Budget, archivedSpend } from './budget.ts';
 import { StudioDocument } from '../engine/document.ts';
 import type { ClientMessage, ServerMessage, StudioEvent, StudioState } from '../shared/events.ts';
 
@@ -77,11 +78,25 @@ const cfg: AgentConfig = {
   maxToolCalls: Number(process.env.MAX_TOOL_CALLS ?? 1500),
   viewSize: 1024,
   rememberPastWorks: /^(1|true|yes)$/i.test(process.env.REMEMBER_PAST_WORKS ?? ''),
+  // gemini-3.1-pro-preview list prices (prompts ≤200k tokens); override if you change models
+  priceInputPerM: Number(process.env.PRICE_INPUT_PER_M ?? 2),
+  pricePerOutputM: Number(process.env.PRICE_OUTPUT_PER_M ?? 12),
 };
+// spending limits only hold if the archive survives deploys: on Railway that needs a volume
+const onRailway = !!process.env.RAILWAY_PROJECT_ID;
+const persistentStorage = !onRailway || !!(process.env.DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH);
+const budget = new Budget(
+  Number(process.env.TOTAL_BUDGET_USD ?? 100),
+  archivedSpend(archive.list(), cfg.priceInputPerM, cfg.pricePerOutputM),
+  persistentStorage,
+);
+const spendNow = () => ({ spent: Math.round(budget.spentTotal * 100) / 100, limit: budget.limit });
+const idleState = (completedRun: boolean): StudioState =>
+  ({ phase: 'idle', worksPerRun: WORKS_PER_RUN, completedRun, blocked: budget.blocked });
 
 // ------------------------------------------------------------------ live state & broadcast
 
-let state: StudioState = { phase: 'idle', worksPerRun: WORKS_PER_RUN, completedRun: false };
+let state: StudioState = idleState(false);
 let current: StudioEvent[] = [];
 const clients = new Map<WebSocket, { tab: string | null }>();
 
@@ -108,9 +123,15 @@ function setState(s: StudioState) {
   for (const ws of clients.keys()) send(ws, { type: 'state', state, owner: isOwner(ws), serverTime: Date.now() });
 }
 
+let lastRefusalLog = 0;
 function startStudio(owner: string) {
   if (run) return;
   if (!apiKey) { console.warn('[studio] cannot start: GEMINI_API_KEY is not set'); return; }
+  if (budget.exhausted) {
+    if (Date.now() - lastRefusalLog > 60_000) { lastRefusalLog = Date.now(); console.warn(`[studio] cannot start: ${budget.reason()}`); }
+    state = idleState(false);
+    return;
+  }
   run = { owner, abort: new AbortController(), graceTimer: null, next: null };
   console.log(`[studio] run started by a viewer — up to ${WORKS_PER_RUN} works, or until their tab is closed`);
   let completed = false;
@@ -120,7 +141,7 @@ function startStudio(owner: string) {
     .finally(() => {
       if (run?.graceTimer) clearTimeout(run.graceTimer);
       run = null;
-      setState({ phase: 'idle', worksPerRun: WORKS_PER_RUN, completedRun: completed });
+      setState(idleState(completed));
       console.log(completed ? `[studio] run complete (${WORKS_PER_RUN} works) — idle until someone presses Continue` : '[studio] idle — waiting for someone to press Begin');
     });
 }
@@ -160,9 +181,17 @@ async function studioLoop(signal: AbortSignal): Promise<boolean> {
         broadcast({ type: 'event', event: e });
       },
       signal: AbortSignal.any([signal, thisWork.signal]),
+      onSpend: (usd) => {
+        const wasSpent = budget.exhausted;
+        budget.add(usd);
+        broadcast({ type: 'spend', spend: spendNow() });
+        if (!wasSpent && budget.exhausted) console.warn(`[studio] ${budget.reason()} (${budget.describe()}) — stopping`);
+      },
+      budgetSpent: () => budget.exhausted,
     });
     console.log(`[studio] work ${work}/${WORKS_PER_RUN} done — tokens: in ${meta.tokens.input}, out ${meta.tokens.output}, thinking ${meta.tokens.thoughts}`);
-    if (signal.aborted) return false;
+    console.log(`[studio] spending: ${budget.describe()} (this work ~$${(meta.costUsd ?? 0).toFixed(2)})`);
+    if (signal.aborted || budget.exhausted) return false;
     if (work === WORKS_PER_RUN) return true;
     // "New work" during a work means "start the next one now": no rest in between
     const skippedByOwner = thisWork.signal.aborted;
@@ -252,7 +281,7 @@ wss.on('connection', (ws) => {
   clients.set(ws, { tab: null });
   alive.add(ws);
   ws.on('pong', () => alive.add(ws));
-  send(ws, { type: 'hello', state, owner: false, events: current, serverTime: Date.now() });
+  send(ws, { type: 'hello', state, owner: false, events: current, serverTime: Date.now(), spend: spendNow() });
   ws.on('message', (data) => {
     let msg: ClientMessage;
     try { msg = JSON.parse(String(data)); } catch { return; }
@@ -274,6 +303,8 @@ server.listen(PORT, () => {
   console.log(`[studio] listening on http://localhost:${PORT}${PROD ? '' : '  (viewer: http://localhost:5173)'}`);
   console.log(`[studio] model ${cfg.model}, thinking ${cfg.thinkingLevel}, max ${cfg.maxTurns} turns, ${WORKS_PER_RUN} works per run`);
   console.log(`[studio] archive: ${DATA_DIR} · site password ${authRequired() ? 'ON' : 'off (set SITE_PASSWORD to require one)'}`);
+  console.log(`[studio] spending limit: ${budget.describe()}`);
+  if (budget.exhausted) console.warn(`[studio] the studio cannot start: ${budget.reason()}`);
   console.log('[studio] idle — open the site and press Begin to start the artist');
 });
 

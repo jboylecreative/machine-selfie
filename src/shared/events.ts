@@ -22,14 +22,20 @@ export type StudioState =
   | { phase: 'resting'; nextAt: number; lastId: string | null; work: number; of: number }
   | { phase: 'stopping' }
   /** completedRun: the last run made all its works (the button offers to continue) */
-  | { phase: 'idle'; worksPerRun: number; completedRun: boolean };
+  /** blocked: why the studio can't start (spending limit reached, or no persistent storage) */
+  | { phase: 'idle'; worksPerRun: number; completedRun: boolean; blocked: 'total' | 'storage' | null };
 
 /** `owner`: this viewer's tab started the running studio (closing it stops the studio).
  *  `serverTime`: the server's clock, so viewers with a wrong clock can still show correct countdowns. */
 export type ServerMessage =
-  | { type: 'hello'; state: StudioState; owner: boolean; events: StudioEvent[]; serverTime: number }
+  | { type: 'hello'; state: StudioState; owner: boolean; events: StudioEvent[]; serverTime: number; spend: Spend }
+  /** the running cost estimate, sent after every model call */
+  | { type: 'spend'; spend: Spend }
   | { type: 'event'; event: StudioEvent }
   | { type: 'state'; state: StudioState; owner: boolean; serverTime: number };
+
+/** estimated spending so far vs the cap (limit 0 = no cap) */
+export interface Spend { spent: number; limit: number }
 
 /** `tab` is a per-tab id kept in sessionStorage: it survives reloads but not closing the tab */
 export type ClientMessage =
@@ -53,4 +59,6 @@ export interface SessionMeta {
   width: number;
   height: number;
   tokens: { input: number; output: number; thoughts: number };
+  /** estimated cost at list price (no caching discount) */
+  costUsd?: number;
 }
