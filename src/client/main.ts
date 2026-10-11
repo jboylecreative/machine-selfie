@@ -232,7 +232,14 @@ function connect() {
       }
     }
   };
-  ws.onclose = () => { connected = false; isOwner = false; setTimeout(connect, 1000); };
+  ws.onclose = async () => {
+    connected = false;
+    isOwner = false;
+    // a refused connection can mean a password was just turned on or changed: go to the login screen
+    const auth = await fetch('/api/auth').then((r) => r.json()).catch(() => null) as { ok: boolean } | null;
+    if (auth && !auth.ok) { location.reload(); return; }
+    setTimeout(connect, 1000);
+  };
 }
 
 async function startLive() {
