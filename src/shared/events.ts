@@ -24,11 +24,12 @@ export type StudioState =
   /** completedRun: the last run made all its works (the button offers to continue) */
   | { phase: 'idle'; worksPerRun: number; completedRun: boolean };
 
-/** `owner`: this viewer's tab started the running studio (closing it stops the studio) */
+/** `owner`: this viewer's tab started the running studio (closing it stops the studio).
+ *  `serverTime`: the server's clock, so viewers with a wrong clock can still show correct countdowns. */
 export type ServerMessage =
-  | { type: 'hello'; state: StudioState; owner: boolean; events: StudioEvent[] }
+  | { type: 'hello'; state: StudioState; owner: boolean; events: StudioEvent[]; serverTime: number }
   | { type: 'event'; event: StudioEvent }
-  | { type: 'state'; state: StudioState; owner: boolean };
+  | { type: 'state'; state: StudioState; owner: boolean; serverTime: number };
 
 /** `tab` is a per-tab id kept in sessionStorage: it survives reloads but not closing the tab */
 export type ClientMessage =

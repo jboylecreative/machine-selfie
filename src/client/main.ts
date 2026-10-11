@@ -167,6 +167,8 @@ let liveEvents: StudioEvent[] = [];
 let studioState: StudioState = { phase: 'idle', worksPerRun: 10, completedRun: false };
 let connected = false;
 let isOwner = false;
+/** server clock minus this browser's clock: countdowns use server time, so a wrong local clock can't break them */
+let clockOffset = 0;
 let mode: 'live' | 'replay' = 'live';
 let socket: WebSocket | null = null;
 
@@ -229,6 +231,7 @@ function connect() {
   ws.onopen = () => { connected = true; sendMsg({ type: 'identify', tab: TAB }); };
   ws.onmessage = (m) => {
     const msg = JSON.parse(m.data) as ServerMessage;
+    if (msg.type === 'hello' || msg.type === 'state') clockOffset = msg.serverTime - Date.now();
     if (msg.type === 'hello') {
       liveEvents = msg.events;
       studioState = msg.state;
@@ -298,7 +301,7 @@ function updateStatus() {
     txt.textContent = `Live · No. ${workNumber || '…'} · ${doing} · ${studioState.work} of ${studioState.of}`;
   } else if (studioState.phase === 'resting') {
     el.classList.add('resting');
-    const s = Math.max(0, Math.round((studioState.nextAt - Date.now()) / 1000));
+    const s = Math.max(0, Math.round((studioState.nextAt - (Date.now() + clockOffset)) / 1000));
     txt.textContent = `Resting · work ${studioState.work} of ${studioState.of} begins in ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   } else if (studioState.phase === 'stopping') txt.textContent = 'The studio is closing…';
   else txt.textContent = studioState.completedRun ? 'Run complete · press Continue for more' : 'The studio is empty';

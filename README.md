@@ -57,6 +57,7 @@ Gemini ──tool calls──▶ server: tools.ts validates → engine ops → S
 - By default every work starts completely fresh: the artist is told nothing about other works,
   not even that they exist. Set `REMEMBER_PAST_WORKS=true` to show it the titles/statements of
   its earlier works (and thumbnails of the last three) so it develops a body of work instead.
+- `MIN_TURNS` (default 15): the artist can't call `finish` before this turn; an early call is refused and it keeps working.
 - `TEMPERATURE`, `THINKING_LEVEL`, `MAX_TURNS`, `MAX_TOOL_CALLS`, `REST_SECONDS` in `.env`.
 
 ## Password
