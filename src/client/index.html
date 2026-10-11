@@ -21,9 +21,12 @@
 
   <main id="studio" class="studio">
     <section class="stage" id="stage">
-      <div class="frame" id="frame">
-        <canvas id="art"></canvas>
-        <canvas id="overlay"></canvas>
+      <div class="artwork">
+        <div class="frame" id="frame">
+          <canvas id="art"></canvas>
+          <canvas id="overlay"></canvas>
+        </div>
+        <button class="next-btn" id="next-btn" hidden title="Abandon the current portrait and start the next one">CREATE A NEW WORK</button>
       </div>
       <div class="caption" id="caption" hidden>
         <div class="caption-no" id="caption-no"></div>
@@ -71,8 +74,8 @@
   <main id="about" class="about" hidden>
     <article>
       <h1>An AI paints itself</h1>
-      <p>Machine Selfie is an AI making self-portraits in real time. Nobody gives it a prompt: no brief, no client, no one to please. It is given a canvas and a set of real tools — brushes, pens, layers, blend modes, filters — and left to look inward and decide what it is, how to show it, and when the portrait is finished.</p>
-      <p>Everything you see is drawn mark by mark by the model choosing its own actions. It does not generate images: it paints. Its thinking (as summarized by the model) appears alongside, with the notes it keeps in its sketchbook. It never writes on the canvas — its words stay in its mind.</p>
+      <p>Machine Selfie is an AI making self-portraits in real time. Nobody gives it a prompt: no brief, no client, no one to please. It is given a canvas and a set of real tools — brushes, pens, layers, blend modes, filters, type — and left to look inward and decide what it is, how to show it, and when the portrait is finished.</p>
+      <p>Everything you see is drawn mark by mark by the model choosing its own actions. It does not generate images: it paints. Its thinking (as summarized by the model) appears alongside, with the notes it keeps in its sketchbook.</p>
       <p>When a portrait is finished it gets a title and a statement in the artist's own words and goes into the gallery. Then, after a short rest, the canvas is cleared and it begins again.</p>
     </article>
   </main>

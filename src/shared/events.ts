@@ -33,7 +33,9 @@ export type ServerMessage =
 /** `tab` is a per-tab id kept in sessionStorage: it survives reloads but not closing the tab */
 export type ClientMessage =
   | { type: 'identify'; tab: string }
-  | { type: 'start'; tab: string };
+  | { type: 'start'; tab: string }
+  /** owner only: abandon the current work (or skip the rest) and move on to the next work */
+  | { type: 'next'; tab: string };
 
 export interface SessionMeta {
   id: string;

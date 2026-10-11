@@ -149,7 +149,7 @@ export async function runSession(cfg: AgentConfig, archive: Archive, hooks: Sess
       console.error('[studio] session error', e);
     }
   }
-  if (hooks.signal.aborted && !finished) endReason = 'stopped — the studio was closed';
+  if (hooks.signal.aborted && !finished) endReason = typeof hooks.signal.reason === 'string' ? hooks.signal.reason : 'stopped — the studio was closed';
 
   meta.endedAt = new Date().toISOString();
   meta.actions = seq;

@@ -37,10 +37,11 @@ Strokes are drawn by stamping the brush tip along a smooth curve through your po
 - Useful settings: `size`, `opacity` (whole stroke), `flow` (per-dab buildup), `hardness`, `spacing`, `jitter`, `taper_start`/`taper_end` (px), `blend_mode`, `erase: true` (erase with that brush), `selection` (SVG path: paint only inside it).
 - `smudge` drags existing pixels along a path like a finger in wet paint.
 
-## Vector shapes and fills
+## Vector shapes, fills, type
 - `draw_path`: any shape from SVG path data, with `fill` / `fill_gradient` and/or `stroke` outline (width, caps, joins, dash). `draw_shape` does rect, ellipse, polygon, star and line without writing path data.
 - `fill`: fill a whole layer or an SVG region with a color or gradient (linear, radial, conic).
 - `bucket_fill`: flood-fill an enclosed area (e.g. inside line work) by color similarity.
+- `draw_text`: set type in any of the studio's typefaces, with size, weight, italic, tracking, line height, wrapping, rotation, outline and gradient fill.
 - Gradients: `{ "type": "linear", "x0", "y0", "x1", "y1", "stops": [{ "offset": 0, "color": "#..." }, ...] }`; radial uses `cx, cy, r`; conic uses `cx, cy, angle`.
 
 ## Filters (`apply_filter`) — destructive, on one layer

@@ -86,7 +86,13 @@ let current: StudioEvent[] = [];
 const clients = new Map<WebSocket, { tab: string | null }>();
 
 /** The running studio and the browser tab that started it. */
-let run: { owner: string; abort: AbortController; graceTimer: NodeJS.Timeout | null } | null = null;
+let run: {
+  owner: string;
+  abort: AbortController;
+  graceTimer: NodeJS.Timeout | null;
+  /** ends the current work (or rest) so the run moves on to the next work */
+  next: (() => void) | null;
+} | null = null;
 
 const isOwner = (ws: WebSocket) => !!run && clients.get(ws)?.tab === run.owner;
 
@@ -105,7 +111,7 @@ function setState(s: StudioState) {
 function startStudio(owner: string) {
   if (run) return;
   if (!apiKey) { console.warn('[studio] cannot start: GEMINI_API_KEY is not set'); return; }
-  run = { owner, abort: new AbortController(), graceTimer: null };
+  run = { owner, abort: new AbortController(), graceTimer: null, next: null };
   console.log(`[studio] run started by a viewer — up to ${WORKS_PER_RUN} works, or until their tab is closed`);
   let completed = false;
   studioLoop(run.abort.signal)
@@ -119,11 +125,12 @@ function startStudio(owner: string) {
     });
 }
 
+/** Abort the whole run (the current work is archived as unfinished). */
 function stopStudio(reason: string) {
   if (!run || run.abort.signal.aborted) return;
   console.log(`[studio] stopping: ${reason}`);
   setState({ phase: 'stopping' });
-  run.abort.abort();
+  run.abort.abort(`stopped — ${reason}`);
 }
 
 /** Called whenever a connection closes or identifies: stop if the owner's tab is gone for good. */
@@ -143,20 +150,27 @@ async function studioLoop(signal: AbortSignal): Promise<boolean> {
     if (signal.aborted) return false;
     current = [];
     setState({ phase: 'working', sessionId: '', work, of: WORKS_PER_RUN });
+    // each work can be ended on its own ("New work") without stopping the run
+    const thisWork = new AbortController();
+    if (run) run.next = () => thisWork.abort('stopped — a new work was started');
     const meta = await runSession(cfg, archive, {
       onEvent(e) {
         if (e.type === 'session') setState({ phase: 'working', sessionId: e.id, work, of: WORKS_PER_RUN });
         current.push(e);
         broadcast({ type: 'event', event: e });
       },
-      signal,
+      signal: AbortSignal.any([signal, thisWork.signal]),
     });
     console.log(`[studio] work ${work}/${WORKS_PER_RUN} done — tokens: in ${meta.tokens.input}, out ${meta.tokens.output}, thinking ${meta.tokens.thoughts}`);
     if (signal.aborted) return false;
     if (work === WORKS_PER_RUN) return true;
-    if (REST_SECONDS > 0) {
+    // "New work" during a work means "start the next one now": no rest in between
+    const skippedByOwner = thisWork.signal.aborted;
+    if (REST_SECONDS > 0 && !skippedByOwner) {
+      const rest = new AbortController();
+      if (run) run.next = () => rest.abort(); // "New work" during the rest starts it right away
       setState({ phase: 'resting', nextAt: Date.now() + REST_SECONDS * 1000, lastId: meta.id, work: work + 1, of: WORKS_PER_RUN });
-      await sleep(REST_SECONDS * 1000, signal);
+      await sleep(REST_SECONDS * 1000, AbortSignal.any([signal, rest.signal]));
     }
   }
   return true;
@@ -245,6 +259,11 @@ wss.on('connection', (ws) => {
     if (typeof msg?.tab !== 'string' || !/^[\w-]{8,64}$/.test(msg.tab)) return;
     clients.set(ws, { tab: msg.tab });
     if (msg.type === 'start' && state.phase === 'idle') startStudio(msg.tab);
+    if (msg.type === 'next' && run?.owner === msg.tab && run.next) {
+      console.log('[studio] the owner asked for a new work');
+      run.next();
+      run.next = null;
+    }
     checkOwnerPresence();
     send(ws, { type: 'state', state, owner: isOwner(ws) });
   });

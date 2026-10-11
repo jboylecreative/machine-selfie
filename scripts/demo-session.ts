@@ -60,6 +60,7 @@ call('new_layer', { name: 'line' });
 call('brush_stroke', { layer: 'line', brush: 'ink', color: '#14110f', size: 9, points: [[160, 260, 0.2], [380, 420, 0.9], [520, 380, 0.5], [610, 610, 1], [560, 760, 0.6], [700, 880, 0.3]] });
 call('draw_shape', { layer: 'line', shape: 'ellipse', cx: 790, cy: 300, rx: 70, ry: 70, fill: '#c8462c' });
 call('new_adjustment_layer', { name: 'warmth', adjustment: { type: 'curves', rgb: [[0, 12], [128, 122], [255, 248]], red: [[0, 0], [128, 138], [255, 255]] } });
+call('draw_text', { layer: 'line', text: 'here', x: 820, y: 1280, font: 'Cormorant Garamond', size: 54, italic: true, color: '#3a302a' });
 call('brush_stroke', { layer: 'nope', brush: 'ink', color: '#000', points: [[0, 0], [10, 10]] }); // shows an error in the stream
 emit({ type: 'turn', n: 4 });
 call('finish', { title: 'Demo: Weight and Line', statement: 'A scripted test of the studio, not a work by the artist.' });

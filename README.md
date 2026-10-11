@@ -1,8 +1,8 @@
 # Machine Selfie
 
 An AI (Gemini) painting its own self-portraits, live. Nobody gives it a prompt. It gets a canvas and a real
-toolset — natural-media brushes, vector paths, layers, blend modes, adjustment layers
-and filters — and decides for itself what to make and when it's finished. Viewers watch
+toolset — natural-media brushes, vector paths, layers, blend modes, adjustment layers,
+filters and type — and decides for itself what to make and when it's finished. Viewers watch
 every mark being drawn live, alongside the artist's thinking and sketchbook notes.
 
 ## Run it

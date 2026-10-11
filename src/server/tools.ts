@@ -1,12 +1,12 @@
 // The artist's toolset: Gemini function declarations + translation of calls into engine ops.
 // Tool names and parameters deliberately mirror Photoshop vocabulary the model already knows.
-// There is deliberately no text tool: the artist's words belong in its thinking, not on the canvas.
 
 import type { FunctionDeclaration } from '@google/genai';
 import { parseColor, type RGBA } from '../engine/color.ts';
 import { defaultBrush } from '../engine/brushes.ts';
 import { BLEND_MODES, BRUSHES, type Adjustment, type BlendMode, type BrushPreset, type FilterSpec, type Gradient, type Op, type Paint, type ShapeStroke } from '../engine/ops.ts';
 import { parseSvgPath } from '../engine/geom.ts';
+import { FONTS } from '../engine/fonts.ts';
 import type { StudioDocument } from '../engine/document.ts';
 
 // ------------------------------------------------------------------ schema helpers
@@ -159,6 +159,19 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
     name: 'bucket_fill',
     description: 'Paint-bucket: flood-fill the contiguous area around (x, y) with a color, bounded by color differences — e.g. fill inside line work.',
     parametersJsonSchema: obj({ layer: LAYER, x: num('x'), y: num('y'), color: COLOR, tolerance: num('0–100 color tolerance (default 20).'), sample_all_layers: bool('Detect boundaries from the visible image rather than just this layer.'), opacity: OPACITY }, ['layer', 'x', 'y', 'color']),
+  },
+  {
+    name: 'draw_text',
+    description: 'Set type. Watchers see it typed out. (x, y) is the anchor point for the first line, interpreted by align/baseline.',
+    parametersJsonSchema: obj({
+      layer: LAYER, text: str('The text. Use \\n for line breaks.'), x: num('Anchor x'), y: num('Anchor y'),
+      font: enm(FONTS.map((f) => f.family), 'Typeface.'), size: num('Font size px.'), weight: int('Font weight (only weights available for the face; nearest is used).'), italic: bool('Italic (if the face has it).'),
+      color: COLOR, gradient: GRADIENT, outline_color: COLOR, outline_width: num('Outline width px.'),
+      align: enm(['left', 'center', 'right'], 'Horizontal alignment (default left).'),
+      baseline: enm(['top', 'middle', 'alphabetic', 'bottom'], 'Vertical anchor (default alphabetic).'),
+      letter_spacing: num('Tracking in px (can be negative).'), line_height: num('Line height multiple (default 1.2).'),
+      max_width: num('Wrap lines to this width px.'), rotation: num('Rotation in degrees around (x, y).'), opacity: OPACITY, blend_mode: BLEND,
+    }, ['layer', 'text', 'x', 'y', 'font', 'size', 'color']),
   },
   {
     name: 'apply_filter',
@@ -543,6 +556,23 @@ function run(name: string, a: S, ctx: ToolContext): ToolOutcome {
     case 'bucket_fill': {
       const layer = resolveLayer(doc, a.layer);
       ctx.emit({ t: 'flood', layer, x: reqNum(a, 'x'), y: reqNum(a, 'y'), color: color(a.color), tolerance: optNum(a.tolerance, 20, 0, 100), sampleAll: !!a.sample_all_layers, opacity: opacityOf(a.opacity) });
+      return ok();
+    }
+    case 'draw_text': {
+      const layer = resolveLayer(doc, a.layer);
+      const font = FONTS.find((f) => f.family.toLowerCase() === String(a.font ?? '').toLowerCase()) ?? fail(`unknown font "${a.font}". Fonts: ${FONTS.map((f) => f.family).join(', ')}`);
+      const want = optNum(a.weight, 400);
+      const weight = font!.weights.reduce((b, w) => (Math.abs(w - want) < Math.abs(b - want) ? w : b), font!.weights[0]);
+      const text = typeof a.text === 'string' && a.text.length ? a.text.slice(0, 2000) : fail('"text" is required');
+      const paint = fillPaint(a, 'color', 'gradient') ?? fail('give a color or gradient');
+      ctx.emit({
+        t: 'text', layer, text: text!, x: reqNum(a, 'x'), y: reqNum(a, 'y'), family: font!.family, weight, italic: !!a.italic && !!font!.italic,
+        size: optNum(a.size, 48, 4, 1500), paint: paint!, stroke: a.outline_color ? { color: color(a.outline_color, 'outline_color'), width: optNum(a.outline_width, 2, 0.1, 100) } : null,
+        align: (['left', 'center', 'right'].includes(a.align as string) ? a.align : 'left') as CanvasTextAlign,
+        baseline: (['top', 'middle', 'alphabetic', 'bottom'].includes(a.baseline as string) ? a.baseline : 'alphabetic') as 'top',
+        letterSpacing: optNum(a.letter_spacing, 0, -200, 500), lineHeight: optNum(a.line_height, 1.2, 0.5, 5),
+        maxWidth: isNum(a.max_width) && a.max_width > 0 ? a.max_width : null, rotation: optNum(a.rotation, 0), opacity: opacityOf(a.opacity), blend: blend(a.blend_mode),
+      });
       return ok();
     }
     case 'apply_filter': {

@@ -134,7 +134,7 @@ function renderLayers() {
 
 function layout() {
   const W = player.doc.width, H = player.doc.height;
-  const extra = ($('caption').hidden ? 0 : $('caption').offsetHeight + 22) + ($('transport').hidden ? 0 : 52);
+  const extra = ($('caption').hidden ? 0 : $('caption').offsetHeight + 22) + ($('transport').hidden ? 0 : 52) + ($('next-btn').hidden ? 0 : 48);
   const pad = window.innerWidth < 900 ? 32 : 56;
   const maxW = stage.clientWidth - pad;
   const maxH = (window.innerWidth < 900 ? window.innerHeight * 0.62 : stage.clientHeight - pad) - extra;
@@ -187,6 +187,17 @@ function sendMsg(msg: ClientMessage) {
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg));
 }
 
+// "New work" (owner only): ends the current work, or skips the rest, and moves on to the next work.
+// Stays disabled until the studio moves on, so repeated clicks don't skip several works.
+let nextRequestedAt: string | null = null;
+const studioPosition = () =>
+  studioState.phase === 'working' ? `w${studioState.work}:${studioState.sessionId}` : studioState.phase === 'resting' ? `r${studioState.work}` : studioState.phase;
+$('next-btn').addEventListener('click', () => {
+  ($('next-btn') as HTMLButtonElement).disabled = true;
+  nextRequestedAt = studioPosition();
+  sendMsg({ type: 'next', tab: TAB });
+});
+
 $('begin-btn').addEventListener('click', () => {
   ($('begin-btn') as HTMLButtonElement).disabled = true;
   sendMsg({ type: 'start', tab: TAB });
@@ -205,6 +216,11 @@ function updateBegin() {
     $('begin-note').textContent = `The artist will make ${idle.completedRun ? 'another ' : ''}${works}, resting between each. Keep this window open — closing it stops the studio.`;
   }
   $('owner-note').hidden = !(isOwner && studioState.phase !== 'idle');
+  const canNext = mode === 'live' && connected && isOwner && (studioState.phase === 'working' || studioState.phase === 'resting');
+  const rb = $('next-btn') as HTMLButtonElement;
+  if (rb.hidden === canNext) { rb.hidden = !canNext; layout(); } // the canvas makes room for the button
+  if (nextRequestedAt && nextRequestedAt !== studioPosition()) nextRequestedAt = null; // the studio has moved on
+  rb.disabled = !!nextRequestedAt;
 }
 
 function connect() {

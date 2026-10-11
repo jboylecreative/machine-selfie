@@ -80,6 +80,16 @@ nav a.on, nav a:hover { color: var(--ink); }
 #begin-btn:hover { background: var(--accent); transform: translateY(-1px); }
 #begin-btn:disabled { opacity: .5; cursor: default; transform: none; }
 .begin-note { color: var(--dim); font-size: 13px; margin: 18px 0 0; }
+/* the canvas plus anything attached beneath it, right-aligned to the canvas edge */
+.artwork { display: flex; flex-direction: column; align-items: flex-end; }
+.next-btn {
+  margin-top: 14px;
+  font: 600 11px var(--sans); letter-spacing: .14em; text-transform: uppercase;
+  background: transparent; color: var(--ink); border: 1px solid var(--line); border-radius: 99px;
+  padding: 8px 16px; cursor: pointer; transition: border-color .15s, color .15s;
+}
+.next-btn:hover { border-color: var(--ink); }
+.next-btn:disabled { opacity: .5; cursor: default; }
 .owner-note { font: 11px var(--mono); color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
 /* ---------------------------------------------------------------- mind panel */
@@ -106,6 +116,7 @@ nav a.on, nav a:hover { color: var(--ink); }
 .action { font: 11.5px/1.45 var(--mono); color: var(--dim); display: flex; gap: 6px; }
 .action .k { color: var(--accent); }
 .action.error { color: #ff8a7a; }
+.action > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .action.group { opacity: .8; }
 
 .finished-card { border: 1px solid var(--accent); padding: 14px 16px; border-radius: 4px; }

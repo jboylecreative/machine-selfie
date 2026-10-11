@@ -1,12 +1,14 @@
 // Assembles the system prompt from prompts/*.md (re-read every session so edits take effect).
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { FONTS } from '../engine/fonts.ts';
 import type { SessionMeta } from '../shared/events.ts';
 
 const dir = fileURLToPath(new URL('../../prompts/', import.meta.url));
 const read = (f: string) => readFileSync(dir + f, 'utf8').replace(/<!--[\s\S]*?-->\s*/g, '').trim();
 
 export function buildSystemPrompt(sessionNumber: number, past: SessionMeta[], remember: boolean): string {
+  const fonts = FONTS.map((f) => `- ${f.family} — ${f.character} (weights ${f.weights.join('/')}${f.italic ? ', italic' : ''})`).join('\n');
   // With memory off, the artist isn't told anything about other works — not even that they exist.
   const finished = past.filter((m) => m.status === 'finished').slice(0, 12);
   const pastText = !remember
@@ -23,6 +25,7 @@ export function buildSystemPrompt(sessionNumber: number, past: SessionMeta[], re
     : 'Nothing has been made in this studio before.';
   return read('system.md')
     .replace('{{STUDIO_MANUAL}}', read('studio-manual.md'))
+    .replace('{{FONTS}}', fonts)
     .replace('{{PAST_WORKS}}', pastText)
     .replace(/\n{3,}/g, '\n\n');
 }
